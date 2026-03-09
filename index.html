@@ -93,9 +93,9 @@
     // Runner
     const runner = {
       x: 80,
-      y: groundY - 35,
+      y: groundY - 45,
       vy: 0,
-      jumpPower: -11,
+      jumpPower: -22,
       gravity: 0.6,
       onGround: true,
       width: 24,
@@ -137,12 +137,12 @@
 
     // Obstacles: { x, type, width, height, passed, counted }
     const obstacleTypes = [
-      { type: 'rock', w: 28, h: 22, yOffset: 0 },
-      { type: 'coconut', w: 20, h: 20, yOffset: -5 },
-      { type: 'water', w: 45, h: 25, yOffset: 0 },
-      { type: 'tiki', w: 18, h: 40, yOffset: 0 },
-      { type: 'flower', w: 35, h: 25, yOffset: 0 },
-      { type: 'chips', w: 26, h: 30, yOffset: -4 }
+      { type: 'rock', w: 28, h: 44, yOffset: 0 },
+      { type: 'coconut', w: 20, h: 40, yOffset: -5 },
+      { type: 'water', w: 45, h: 50, yOffset: 0 },
+      { type: 'tiki', w: 18, h: 80, yOffset: 0 },
+      { type: 'flower', w: 35, h: 50, yOffset: 0 },
+      { type: 'chips', w: 26, h: 60, yOffset: -4 }
     ];
 
     let obstacles = [];
