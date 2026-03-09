@@ -467,10 +467,16 @@
 
       // yellow cape that opens and flutters while in the air
       if (!runner.onGround) {
-        const flutter = Math.sin(time * 0.35) * 6;
+        const glidingHorizontally =
+          ((keys.ArrowLeft && !keys.ArrowRight) || (keys.ArrowRight && !keys.ArrowLeft)) &&
+          !keys.ArrowDown;
+        const flutterSpeed = glidingHorizontally ? 1.6 : 0.35;
+        const flutterAmp = glidingHorizontally ? 4 : 6;
+        const flutter = Math.sin(time * flutterSpeed) * flutterAmp;
+
         ctx.fillStyle = '#ffd84a';
         ctx.beginPath();
-        ctx.moveTo(-bodyW / 2, -bodyH / 2); // attach near left shoulder
+        ctx.moveTo(-bodyW / 2, -bodyH / 2 - (glidingHorizontally ? 2 : 0)); // attach near left shoulder
         ctx.quadraticCurveTo(
           -bodyW / 2 - 20,
           -bodyH / 2 + 10 + flutter,
@@ -592,7 +598,11 @@
       }
 
       // runner physics
-      runner.vy += 0.6;
+      const glidingHorizontally =
+        !runner.onGround &&
+        ((keys.ArrowLeft && !keys.ArrowRight) || (keys.ArrowRight && !keys.ArrowLeft));
+      const gravity = glidingHorizontally ? 0.3 : 0.6; // fall about half as fast when gliding
+      runner.vy += gravity;
       runner.y += runner.vy;
       const standHeight = runner.ducking ? 24 : runner.height;
       if (runner.y >= groundY - standHeight) {
