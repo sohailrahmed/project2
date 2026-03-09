@@ -90,12 +90,13 @@
     const groundY = H - 55;
     const oceanHeight = 50;
 
-    // Runner
+    // Runner (vertical limit: top of character stays within frame)
+    const ceilingMargin = 28; // min distance from top of canvas to runner center
     const runner = {
       x: 80,
       y: groundY - 45,
       vy: 0,
-      jumpPower: -22,
+      jumpPower: -14,
       gravity: 0.6,
       onGround: true,
       width: 24,
@@ -209,16 +210,15 @@
         return;
       }
 
-      // 360° directional support: allow horizontal and vertical at the same time.
-      // Make horizontal almost as sensitive as vertical by using the same threshold.
-      if (Math.abs(dx) > dead * 0.9) {
+      // 360° directional support: horizontal more sensitive, vertical (jump) less sensitive
+      if (Math.abs(dx) > dead * 0.6) {
         if (dx < 0) {
           keys.ArrowLeft = true;
         } else {
           keys.ArrowRight = true;
         }
       }
-      if (Math.abs(dy) > dead) {
+      if (Math.abs(dy) > dead * 1.4) {
         if (dy < 0) {
           keys.ArrowUp = true;
         } else {
@@ -586,7 +586,7 @@
 
       // arrow keys: left / right move, up = jump, down = duck
       const baseMoveSpeed = runner.runSpeed * (dt / 16);
-      const airMultiplier = runner.onGround ? 1 : 2; // move faster in the air
+      const airMultiplier = runner.onGround ? 1 : 5; // much more horizontal movement in the air
       const moveSpeed = baseMoveSpeed * airMultiplier;
       if (keys.ArrowLeft)  runner.x = Math.max(50, runner.x - moveSpeed);
       if (keys.ArrowRight) runner.x = Math.min(W - 50, runner.x + moveSpeed);
@@ -597,14 +597,20 @@
         runner.onGround = false;
       }
 
-      // runner physics
+      // runner physics: half fall speed when moving horizontally in the air
       const glidingHorizontally =
         !runner.onGround &&
         ((keys.ArrowLeft && !keys.ArrowRight) || (keys.ArrowRight && !keys.ArrowLeft));
-      const gravity = glidingHorizontally ? 0.3 : 0.6; // fall about half as fast when gliding
+      const gravity = glidingHorizontally ? 0.3 : 0.6;
       runner.vy += gravity;
       runner.y += runner.vy;
+
       const standHeight = runner.ducking ? 24 : runner.height;
+      // ceiling: don't fly off the top of the screen
+      if (runner.y < ceilingMargin) {
+        runner.y = ceilingMargin;
+        runner.vy = 0;
+      }
       if (runner.y >= groundY - standHeight) {
         runner.y = groundY - standHeight;
         runner.vy = 0;
