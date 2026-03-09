@@ -6,54 +6,6 @@
   <style>
     body { margin: 0; background: #1a5f7a; display: flex; justify-content: center; align-items: center; min-height: 100vh; position: relative; overflow: hidden; }
     canvas { border: 2px solid #0d3d4d; border-radius: 8px; background: #87ceeb; display: block; }
-    #namePrompt {
-      position: absolute;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-    #namePromptInner {
-      background: rgba(0, 0, 0, 0.8);
-      padding: 16px 24px;
-      border-radius: 10px;
-      color: #fff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-      pointer-events: auto;
-      min-width: 260px;
-    }
-    #namePromptInner h2 {
-      margin: 0 0 8px;
-      font-size: 20px;
-    }
-    #namePromptInner p {
-      margin: 4px 0 10px;
-      font-size: 14px;
-      opacity: 0.9;
-    }
-    #playerNameInput {
-      width: 180px;
-      padding: 6px 8px;
-      border-radius: 6px;
-      border: none;
-      margin-right: 8px;
-      font-size: 14px;
-    }
-    #saveScoreButton {
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: none;
-      background: #ffb347;
-      color: #3b2400;
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #saveScoreButton:hover {
-      background: #ffc66b;
-    }
 
     /* Mobile joystick controls */
     #joystickContainer {
@@ -118,19 +70,6 @@
 </head>
 <body>
   <canvas id="game" width="900" height="400"></canvas>
-  <div id="namePrompt">
-    <div id="namePromptInner">
-      <h2 id="namePromptTitle">Game Over</h2>
-      <p id="namePromptMessage"></p>
-      <div style="margin-bottom: 6px; font-size: 14px;">
-        <span id="namePromptScoreText"></span>
-      </div>
-      <div style="display: flex; align-items: center; margin-top: 6px;">
-        <input id="playerNameInput" type="text" placeholder="Your name" maxlength="20" />
-        <button id="saveScoreButton">Save & Restart</button>
-      </div>
-    </div>
-  </div>
   <div id="joystickContainer">
     <div id="joystickBase">
       <div id="joystickKnob"></div>
@@ -141,14 +80,6 @@
     const ctx = canvas.getContext('2d');
     const W = canvas.width;
     const H = canvas.height;
-
-    // UI elements for score/name input
-    const namePrompt = document.getElementById('namePrompt');
-    const namePromptTitle = document.getElementById('namePromptTitle');
-    const namePromptMessage = document.getElementById('namePromptMessage');
-    const namePromptScoreText = document.getElementById('namePromptScoreText');
-    const playerNameInput = document.getElementById('playerNameInput');
-    const saveScoreButton = document.getElementById('saveScoreButton');
 
     // Joystick elements (for touch / phone)
     const joystickContainer = document.getElementById('joystickContainer');
@@ -183,7 +114,7 @@
         return;
       }
 
-      if (e.key === ' ' && gameOver && !awaitingName) {
+      if (e.key === ' ' && gameOver) {
         e.preventDefault();
         resetGame();
         return;
@@ -210,7 +141,8 @@
       { type: 'coconut', w: 20, h: 20, yOffset: -5 },
       { type: 'water', w: 45, h: 25, yOffset: 0 },
       { type: 'tiki', w: 18, h: 40, yOffset: 0 },
-      { type: 'flower', w: 35, h: 25, yOffset: 0 }
+      { type: 'flower', w: 35, h: 25, yOffset: 0 },
+      { type: 'chips', w: 26, h: 30, yOffset: -4 }
     ];
 
     let obstacles = [];
@@ -221,19 +153,16 @@
     let gameOver = false;
     let score = 0;
     let highScore = 0;
-    let highScoreName = '---';
-    let awaitingName = false;
 
-    const lethalObstacles = ['rock', 'coconut', 'water', 'tiki'];
+    const lethalObstacles = ['rock', 'coconut', 'water', 'tiki', 'chips'];
 
     // Load saved high score if present
     try {
       const saved = localStorage.getItem('hawaiiRunnerHighScore');
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed.score === 'number' && typeof parsed.name === 'string') {
-          highScore = parsed.score;
-          highScoreName = parsed.name;
+        const parsedScore = Number(saved);
+        if (!isNaN(parsedScore) && parsedScore > 0) {
+          highScore = parsedScore;
         }
       }
     } catch (e) {
@@ -329,34 +258,6 @@
     joystickBase.addEventListener('touchmove', handleJoystickMove, { passive: false });
     joystickBase.addEventListener('touchend', handleJoystickEnd, { passive: false });
     joystickBase.addEventListener('touchcancel', handleJoystickEnd, { passive: false });
-
-    function saveScoreAndRestart() {
-      const name = (playerNameInput.value || '').trim() || 'Anonymous';
-      if (score > highScore) {
-        highScore = score;
-        highScoreName = name;
-        try {
-          localStorage.setItem('hawaiiRunnerHighScore', JSON.stringify({
-            name: highScoreName,
-            score: highScore
-          }));
-        } catch (e) {
-          // ignore storage errors
-        }
-      }
-      namePrompt.style.display = 'none';
-      awaitingName = false;
-      resetGame();
-    }
-
-    saveScoreButton.addEventListener('click', saveScoreAndRestart);
-    playerNameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        saveScoreAndRestart();
-      }
-      e.stopPropagation();
-    });
 
     function spawnObstacle() {
       const t = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
@@ -513,6 +414,28 @@
           ctx.font = 'bold 10px sans-serif';
           ctx.fillText('😠', x + 5, y - ob.h - 8);
           break;
+        case 'chips':
+          // bright snack bag
+          ctx.save();
+          ctx.translate(x + ob.w / 2, y - ob.h / 2);
+          ctx.rotate(Math.sin(time * 0.15 + x * 0.02) * 0.15);
+          ctx.fillStyle = '#ffcc33';
+          ctx.beginPath();
+          ctx.moveTo(-ob.w / 2, ob.h / 2);
+          ctx.lineTo(-ob.w / 2 + 4, -ob.h / 2);
+          ctx.lineTo(ob.w / 2 - 4, -ob.h / 2);
+          ctx.lineTo(ob.w / 2, ob.h / 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#e67e22';
+          ctx.fillRect(-ob.w / 2 + 3, -2, ob.w - 6, 4);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('CH', 0, -6);
+          ctx.restore();
+          break;
         case 'flower':
           ctx.fillStyle = '#ff69b4';
           ctx.beginPath();
@@ -626,23 +549,6 @@
       runner.legPhase = 0;
     }
 
-    function handleGameOver() {
-      awaitingName = true;
-      namePrompt.style.display = 'flex';
-
-      const isNewHigh = score > highScore;
-      namePromptTitle.textContent = isNewHigh ? 'New High Score!' : 'Game Over';
-      namePromptMessage.textContent = isNewHigh
-        ? 'You set a new record on the beach. Add your name to the tiki board:'
-        : `You jumped over ${score} obstacle${score === 1 ? '' : 's'}. Add your name and try to beat ${highScoreName}'s record of ${highScore}.`;
-      namePromptScoreText.textContent = `Your score: ${score}`;
-
-      setTimeout(() => {
-        playerNameInput.value = '';
-        playerNameInput.focus();
-      }, 50);
-    }
-
     function update(dt) {
       if (gameOver) {
         return;
@@ -681,12 +587,17 @@
       }
       runner.legPhase += 0.25;
 
-      // death: hit black spheres (rock, coconut), blue cube (water), or tiki
+      // death: hit lethal obstacles
       obstacles.forEach(ob => {
         if (lethalObstacles.includes(ob.type) && hitTestRunnerObstacle(ob)) {
           gameOver = true;
-          if (!awaitingName) {
-            handleGameOver();
+          if (score > highScore) {
+            highScore = score;
+            try {
+              localStorage.setItem('hawaiiRunnerHighScore', String(highScore));
+            } catch (e) {
+              // ignore storage errors
+            }
           }
         }
         const obScreenX = ob.x - scrollX;
@@ -737,7 +648,7 @@
       ctx.textAlign = 'left';
       ctx.fillText(`Score: ${score}`, 20, 34);
       ctx.font = '13px sans-serif';
-      ctx.fillText(`Best: ${highScoreName} - ${highScore}`, 20, 52);
+      ctx.fillText(`Best: ${highScore}`, 20, 52);
 
       if (gameOver) {
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -749,13 +660,7 @@
         ctx.font = '28px sans-serif';
         ctx.fillText(`Score: ${score}`, W / 2, H / 2 + 5);
         ctx.font = '18px sans-serif';
-        ctx.fillText(
-          awaitingName
-            ? 'Enter your name in the box to save and restart.'
-            : 'Press SPACE to run again.',
-          W / 2,
-          H / 2 + 40
-        );
+        ctx.fillText('Press SPACE to run again.', W / 2, H / 2 + 40);
         ctx.textAlign = 'left';
       }
     }
