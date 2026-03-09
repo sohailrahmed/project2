@@ -97,7 +97,7 @@
 
     function makeBlastWavDataUri() {
       var sampleRate = 22050;
-      var dur = 0.2;
+      var dur = 0.14;
       var numSamples = Math.floor(sampleRate * dur);
       var dataSize = numSamples * 2;
       var buffer = new ArrayBuffer(44 + dataSize);
@@ -119,9 +119,10 @@
       var samples = new Int16Array(buffer, 44, numSamples);
       for (var i = 0; i < numSamples; i++) {
         var t = i / sampleRate;
-        var noise = (Math.random() * 2 - 1) * Math.exp(-t / 0.05);
-        var tone = Math.sin(2 * Math.PI * 400 * t) * Math.exp(-t / 0.08);
-        samples[i] = Math.max(-32767, Math.min(32767, Math.floor((noise * 0.6 + tone * 0.4) * 12000)));
+        var noise = (Math.random() * 2 - 1) * Math.exp(-t / 0.03);
+        var tone = Math.sin(2 * Math.PI * 480 * t) * Math.exp(-t / 0.06);
+        var amp = (i < 8) ? 1 : Math.exp(-t / 0.04);
+        samples[i] = Math.max(-32767, Math.min(32767, Math.floor((noise * 0.65 + tone * 0.5) * 22000 * amp)));
       }
       var bytes = new Uint8Array(buffer);
       var binary = '';
@@ -129,9 +130,16 @@
       return 'data:audio/wav;base64,' + btoa(binary);
     }
 
+    var blastPool = [];
     if (isTouchDevice) {
-      blastAudioFallback.src = makeBlastWavDataUri();
-      blastAudioFallback.volume = 0.75;
+      var blastWav = makeBlastWavDataUri();
+      for (var p = 0; p < 4; p++) {
+        var a = new Audio(blastWav);
+        a.volume = 1;
+        a.preload = 'auto';
+        blastPool.push(a);
+      }
+      blastAudioFallback.volume = 1;
       blastAudioFallback.preload = 'auto';
     }
 
@@ -141,10 +149,10 @@
       musicStarted = true;
       bgMusic.volume = 0.5;
       bgMusic.play().catch(function () {});
-      if (isTouchDevice) {
-        blastAudioFallback.volume = 0;
-        blastAudioFallback.currentTime = 0;
-        blastAudioFallback.play().catch(function () {});
+      if (isTouchDevice && blastPool.length) {
+        blastPool[0].volume = 0;
+        blastPool[0].currentTime = 0;
+        blastPool[0].play().catch(function () {});
       }
       if (!blastAudioContext) blastAudioContext = new (window.AudioContext || window.webkitAudioContext)();
       var ctx = blastAudioContext;
@@ -166,12 +174,15 @@
     }
 
     let blastAudioContext = null;
+    var blastPoolIndex = 0;
     function playBlastSound() {
-      if (isTouchDevice) {
+      if (isTouchDevice && blastPool.length) {
         try {
-          blastAudioFallback.currentTime = 0;
-          blastAudioFallback.volume = 0.75;
-          blastAudioFallback.play().catch(function () {});
+          var a = blastPool[blastPoolIndex];
+          blastPoolIndex = (blastPoolIndex + 1) % blastPool.length;
+          a.volume = 1;
+          a.currentTime = 0;
+          a.play().catch(function () {});
         } catch (e) {}
         return;
       }
