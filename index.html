@@ -601,7 +601,7 @@
       const glidingHorizontally =
         !runner.onGround &&
         ((keys.ArrowLeft && !keys.ArrowRight) || (keys.ArrowRight && !keys.ArrowLeft));
-      const gravity = glidingHorizontally ? 0.3 : 0.6;
+      const gravity = glidingHorizontally ? 0.15 : 0.6;
       runner.vy += gravity;
       runner.y += runner.vy;
 
