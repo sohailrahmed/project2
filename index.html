@@ -559,30 +559,29 @@
     }
 
     function drawMountains() {
-      ctx.fillStyle = '#7cb87c';
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-      ctx.lineTo(0, H - 120);
-      ctx.lineTo(120, groundY + 20);
-      ctx.lineTo(280, H - 80);
-      ctx.lineTo(450, groundY + 10);
-      ctx.lineTo(600, H - 100);
-      ctx.lineTo(800, groundY + 30);
-      ctx.lineTo(W + 50, H - 60);
-      ctx.lineTo(W + 50, H);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = '#5a9a5a';
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-      ctx.lineTo(180, H - 90);
-      ctx.lineTo(350, groundY);
-      ctx.lineTo(520, H - 70);
-      ctx.lineTo(750, groundY + 20);
-      ctx.lineTo(W + 50, H);
-      ctx.closePath();
-      ctx.fill();
+      // Lush green mountains with parallax; multiple layers, varying heights
+      const layers = [
+        { parallax: 0.12, peaks: [0, 140, 320, 500, 700, 900, 1100], heights: [85, 140, 95, 160, 110, 150, 90], color: '#2d5a27' },
+        { parallax: 0.2,  peaks: [0, 180, 400, 580, 820, 1050],         heights: [120, 180, 140, 200, 155, 125],        color: '#3d7a35' },
+        { parallax: 0.32, peaks: [0, 220, 450, 650, 880, 1150, 1350], heights: [150, 210, 165, 230, 175, 195, 130],   color: '#4d9a45' },
+        { parallax: 0.45, peaks: [0, 260, 520, 760, 1000, 1250],      heights: [180, 250, 200, 270, 220, 180],        color: '#5eb85a' },
+        { parallax: 0.6,  peaks: [0, 300, 600, 900, 1200],           heights: [200, 280, 240, 290, 210],             color: '#7cd87a' }
+      ];
+      layers.forEach(layer => {
+        const baseX = -(scrollX * layer.parallax) % 500;
+        ctx.fillStyle = layer.color;
+        ctx.beginPath();
+        ctx.moveTo(-50, H + 20);
+        for (let i = 0; i < layer.peaks.length; i++) {
+          const px = baseX + layer.peaks[i];
+          const peakY = H - layer.heights[i];
+          ctx.lineTo(px, peakY);
+        }
+        ctx.lineTo(baseX + 1500, H + 20);
+        ctx.lineTo(-50, H + 20);
+        ctx.closePath();
+        ctx.fill();
+      });
     }
 
     function drawOcean() {
@@ -617,25 +616,65 @@
       ctx.fillRect(0, groundY, W, H - groundY);
     }
 
-    function drawPalm(x, scale) {
+    function drawPalm(x, scale, hasCoconuts) {
       const baseY = groundY + 5;
       ctx.save();
       ctx.translate(x, baseY);
 
-      // trunk
-      ctx.fillStyle = '#8b6914';
-      ctx.fillRect(-6 * scale, 0, 12 * scale, -55 * scale);
+      // Tall slender trunk (slightly tapered, palm-like)
+      const tw = 5 * scale;
+      ctx.fillStyle = '#6b5344';
+      ctx.strokeStyle = '#4a3728';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-tw, 0);
+      ctx.lineTo(-tw * 0.7, -58 * scale);
+      ctx.lineTo(tw * 0.7, -58 * scale);
+      ctx.lineTo(tw, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
 
-      // leaves
-      ctx.fillStyle = '#228b22';
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 0.8 - 0.2;
-        ctx.save();
-        ctx.rotate(a);
+      // Ring segments on trunk
+      ctx.strokeStyle = 'rgba(90,60,40,0.5)';
+      ctx.lineWidth = 1;
+      for (let r = 0; r < 8; r++) {
+        const ty = -r * (52 * scale / 8);
         ctx.beginPath();
-        ctx.ellipse(0, -50 * scale, 25 * scale, 8 * scale, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.ellipse(0, ty, tw * 0.85, 2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Palm fronds: long curved leaves radiating from top
+      const frondCount = hasCoconuts ? 10 : 12;
+      for (let i = 0; i < frondCount; i++) {
+        const a = (i / frondCount) * Math.PI * 1.6 - 0.5;
+        const len = (28 + (i % 3) * 4) * scale;
+        ctx.save();
+        ctx.translate(0, -56 * scale);
+        ctx.rotate(a);
+        ctx.strokeStyle = '#1a5c1a';
+        ctx.fillStyle = '#2d7a2d';
+        ctx.lineWidth = 2.5 * scale;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len * 0.4, -len * 0.5, len * 0.9, -len);
+        ctx.stroke();
         ctx.restore();
+      }
+
+      // Coconuts (small clusters under fronds)
+      if (hasCoconuts) {
+        ctx.fillStyle = '#3d2817';
+        ctx.strokeStyle = '#2a1a0f';
+        ctx.lineWidth = 1;
+        [[-4, -50], [3, -52], [-1, -54]].forEach(([cx, cy]) => {
+          ctx.beginPath();
+          ctx.arc(cx * scale, cy * scale, 3 * scale, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
       }
       ctx.restore();
     }
@@ -999,20 +1038,20 @@
       drawSun();
       drawMountains();
 
-      // palms in background (parallax)
+      // palm / coconut trees in background (parallax)
       const palmPositions = [100, 350, 600, 850, 1100, 1400];
-      palmPositions.forEach(px => {
+      palmPositions.forEach((px, i) => {
         const screenX = (px - scrollX * 0.3) % (W + 80) - 40;
-        if (screenX > -60) drawPalm(screenX, 0.7);
+        if (screenX > -60) drawPalm(screenX, 0.7, i % 2 === 0);
       });
 
       drawSand();
       drawOcean();
 
-      // palms in foreground
-      [250, 500, 750, 1000].forEach(px => {
+      // palm / coconut trees in foreground
+      [250, 500, 750, 1000].forEach((px, i) => {
         const screenX = (px - scrollX * 0.6) % (W + 100) - 50;
-        if (screenX > -80) drawPalm(screenX, 1);
+        if (screenX > -80) drawPalm(screenX, 1, i % 2 === 1);
       });
 
       obstacles.forEach(drawObstacle);
