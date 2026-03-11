@@ -282,14 +282,18 @@
       }
     });
 
-    // Obstacles: holes in the ground { x, type, width, height (depth), passed, counted }
+    // Obstacles: holes and lava cracks (half and half) { x, type, width, height, passed, counted }
     const obstacleTypes = [
       { type: 'hole', w: 72, h: 55, yOffset: 0 },
       { type: 'hole', w: 88, h: 65, yOffset: 0 },
-      { type: 'hole', w: 104, h: 75, yOffset: 0 }
+      { type: 'hole', w: 104, h: 75, yOffset: 0 },
+      { type: 'lava', w: 72, h: 55, yOffset: 0 },
+      { type: 'lava', w: 88, h: 65, yOffset: 0 },
+      { type: 'lava', w: 104, h: 75, yOffset: 0 }
     ];
 
     let obstacles = [];
+    let obstacleSpawnCount = 0;
     let scrollX = 0;
     let scrollXForDraw = 0; // when sinking, used to center view on character + hole
     let time = 0;
@@ -305,7 +309,7 @@
     let nextJetAt = 380;
     const jetSpeed = scrollSpeed + 4;
 
-    const lethalObstacles = ['hole'];
+    const lethalObstacles = ['hole', 'lava', 'geyser'];
 
     // Load saved high score if present
     try {
@@ -409,16 +413,30 @@
     joystickBase.addEventListener('touchcancel', handleJoystickEnd, { passive: false });
 
     function spawnObstacle() {
-      const t = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-      obstacles.push({
-        x: W + 20 + scrollX,
-        type: t.type,
-        w: t.w,
-        h: t.h,
-        yOffset: t.yOffset,
-        passed: false,
-        counted: false
-      });
+      obstacleSpawnCount++;
+      const isEveryFourth = obstacleSpawnCount % 4 === 0;
+      if (isEveryFourth) {
+        obstacles.push({
+          x: W + 20 + scrollX,
+          type: 'geyser',
+          w: 38,
+          h: 52,
+          yOffset: 0,
+          passed: false,
+          counted: false
+        });
+      } else {
+        const t = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+        obstacles.push({
+          x: W + 20 + scrollX,
+          type: t.type,
+          w: t.w,
+          h: t.h,
+          yOffset: t.yOffset,
+          passed: false,
+          counted: false
+        });
+      }
     }
 
     function spawnMeteor() {
@@ -688,15 +706,62 @@
       if (x + ob.w < -20 || x > W + 20) return;
       const y = groundY + ob.yOffset;
 
+      const cx = x + ob.w / 2;
+      const flatHeight = 10;
+
       if (ob.type === 'hole') {
-        // Flat pancake-like black spot (manhole cover style) on the ground
-        const cx = x + ob.w / 2;
-        const flatHeight = 10; // thin vertical so it reads as flat on the ground
+        // Flat black spot (manhole cover style)
         ctx.fillStyle = '#0a0a0a';
         ctx.beginPath();
         ctx.ellipse(cx, y + flatHeight / 2, ob.w / 2, flatHeight / 2, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (ob.type === 'lava') {
+        // Lava crack: red/orange glow, jagged edge
+        const g = ctx.createRadialGradient(cx, y, 0, cx, y, ob.w / 2 + 4);
+        g.addColorStop(0, '#ff4400');
+        g.addColorStop(0.4, '#cc2200');
+        g.addColorStop(0.8, '#881100');
+        g.addColorStop(1, '#440800');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(cx, y + flatHeight / 2, ob.w / 2, flatHeight / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ff6622';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Crack lines
+        ctx.strokeStyle = 'rgba(255,100,0,0.8)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 0.6 - 0.2;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a) * 4, y + 5 + Math.sin(a) * 2);
+          ctx.lineTo(cx + Math.cos(a) * (ob.w / 2 - 4), y + 5 + Math.sin(a) * 4);
+          ctx.stroke();
+        }
+      } else if (ob.type === 'geyser') {
+        // Volcanic steam / geyser: burst from ground, jump to avoid
+        const gx = x + ob.w / 2;
+        const burstH = ob.h;
+        const wobble = Math.sin(time * 4 + gx * 0.1) * 3;
+        const g = ctx.createLinearGradient(gx, groundY, gx, groundY - burstH);
+        g.addColorStop(0, 'rgba(200,220,255,0.85)');
+        g.addColorStop(0.3, 'rgba(180,200,230,0.6)');
+        g.addColorStop(0.7, 'rgba(220,235,255,0.25)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(gx - ob.w / 2 + wobble, groundY);
+        ctx.lineTo(gx - ob.w / 3, groundY - burstH * 0.6);
+        ctx.lineTo(gx, groundY - burstH);
+        ctx.lineTo(gx + ob.w / 3, groundY - burstH * 0.6);
+        ctx.lineTo(gx + ob.w / 2 - wobble, groundY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -857,17 +922,19 @@
     function hitTestRunnerObstacle(ob) {
       const obLeft = ob.x - scrollX;
       const obRight = obLeft + ob.w;
-      // Holes are flat on the ground: thin band at groundY so runner feet can touch
-      const obTop = ob.type === 'hole' ? groundY : groundY + ob.yOffset - ob.h;
-      const obBottom = ob.type === 'hole' ? groundY + 14 : groundY + ob.yOffset;
+      // Holes and lava: flat on ground. Geyser: vertical column from ground up (jump to avoid)
+      const isGroundPit = ob.type === 'hole' || ob.type === 'lava';
+      const isGeyser = ob.type === 'geyser';
+      const obTop = isGeyser ? groundY - ob.h : (isGroundPit ? groundY : groundY + ob.yOffset - ob.h);
+      const obBottom = isGeyser ? groundY : (isGroundPit ? groundY + 14 : groundY + ob.yOffset);
 
       const rH = runner.ducking ? 24 : 35;
       const rHalfW = runner.width / 2;
       const rLeft = runner.x - rHalfW;
       const rRight = runner.x + rHalfW;
       const rTop = runner.y - rH / 2;
-      // When on ground, treat runner's feet as at groundY so he can touch flat holes
-      const rBottom = (ob.type === 'hole' && runner.onGround) ? groundY + 2 : runner.y + rH / 2;
+      const rBottom = (isGroundPit && runner.onGround) ? groundY + 2 : runner.y + rH / 2;
+      // Geyser: use normal runner bounds (must jump to clear)
 
       return rRight > obLeft && rLeft < obRight && rBottom > obTop && rTop < obBottom;
     }
@@ -876,6 +943,7 @@
       gameOver = false;
       scrollX = 0;
       obstacles = [];
+      obstacleSpawnCount = 0;
       meteors = [];
       blasts = [];
       jets = [];
@@ -999,14 +1067,22 @@
         runner.x += (W / 2 - runner.x) * 0.3;
       }
 
-      // death: hit holes — fall in until fully submerged, then game over
+      // death: geyser = instant game over; hole/lava = sink then game over
       obstacles.forEach(ob => {
         if (lethalObstacles.includes(ob.type) && hitTestRunnerObstacle(ob) && !runner.fallingInHole) {
-          runner.fallingInHole = true;
-          runner.fallStartTime = time;
-          runner.fallHoleCenterWorldX = ob.x + ob.w / 2;
+          if (ob.type === 'geyser') {
+            gameOver = true;
+            if (score > highScore) {
+              highScore = score;
+              try { localStorage.setItem('hawaiiRunnerHighScore', String(highScore)); } catch (e) {}
+            }
+          } else {
+            runner.fallingInHole = true;
+            runner.fallStartTime = time;
+            runner.fallHoleCenterWorldX = ob.x + ob.w / 2;
+          }
         }
-        // Game over when character has fully sunk into the hole (head below ground)
+        // Game over when character has fully sunk into hole/lava (head below ground)
         if (runner.fallingInHole && runner.y >= groundY + 28) {
           gameOver = true;
           runner.fallingInHole = false;
